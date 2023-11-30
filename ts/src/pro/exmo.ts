@@ -5,7 +5,7 @@ import exmoRest from '../exmo.js';
 import { NotSupported } from '../base/errors.js';
 import { ArrayCache, ArrayCacheBySymbolById } from '../base/ws/Cache.js';
 import { sha512 } from '../static_dependencies/noble-hashes/sha512.js';
-import { Int } from '../base/types.js';
+import { Int, Str } from '../base/types.js';
 import Client from '../base/ws/Client.js';
 
 //  ---------------------------------------------------------------------------
@@ -53,8 +53,8 @@ export default class exmo extends exmoRest {
          * @method
          * @name exmo#watchBalance
          * @description watch balance and get the amount of funds available for trading or funds locked in orders
-         * @param {object} [params] extra parameters specific to the exmo api endpoint
-         * @returns {object} a [balance structure]{@link https://github.com/ccxt/ccxt/wiki/Manual#balance-structure}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
          */
         await this.authenticate (params);
         const [ type, query ] = this.handleMarketTypeAndParams ('watchBalance', undefined, params);
@@ -158,19 +158,17 @@ export default class exmo extends exmoRest {
             for (let i = 0; i < currencies.length; i++) {
                 const currencyId = currencies[i];
                 const code = this.safeCurrencyCode (currencyId);
-                const free = balances[currencyId];
-                const used = reserved[currencyId];
                 const account = this.account ();
-                account['free'] = this.parseNumber (free);
-                account['used'] = this.parseNumber (used);
+                account['free'] = this.safeString (balances, currencyId);
+                account['used'] = this.safeString (reserved, currencyId);
                 this.balance[code] = account;
             }
         } else if (event === 'update') {
             const currencyId = this.safeString (data, 'currency');
             const code = this.safeCurrencyCode (currencyId);
             const account = this.account ();
-            account['free'] = this.safeNumber (data, 'balance');
-            account['used'] = this.safeNumber (data, 'reserved');
+            account['free'] = this.safeString (data, 'balance');
+            account['used'] = this.safeString (data, 'reserved');
             this.balance[code] = account;
         }
         this.balance = this.safeBalance (this.balance);
@@ -199,9 +197,9 @@ export default class exmo extends exmoRest {
             const code = this.safeCurrencyCode (currencyId);
             const wallet = this.safeValue (data, currencyId);
             const account = this.account ();
-            account['free'] = this.safeNumber (wallet, 'free');
-            account['used'] = this.safeNumber (wallet, 'used');
-            account['total'] = this.safeNumber (wallet, 'balance');
+            account['free'] = this.safeString (wallet, 'free');
+            account['used'] = this.safeString (wallet, 'used');
+            account['total'] = this.safeString (wallet, 'balance');
             this.balance[code] = account;
             this.balance = this.safeBalance (this.balance);
         }
@@ -213,8 +211,8 @@ export default class exmo extends exmoRest {
          * @name exmo#watchTicker
          * @description watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific market
          * @param {string} symbol unified symbol of the market to fetch the ticker for
-         * @param {object} [params] extra parameters specific to the exmo api endpoint
-         * @returns {object} a [ticker structure]{@link https://github.com/ccxt/ccxt/wiki/Manual#ticker-structure}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
          */
         await this.loadMarkets ();
         const market = this.market (symbol);
@@ -272,8 +270,8 @@ export default class exmo extends exmoRest {
          * @param {string} symbol unified symbol of the market to fetch trades for
          * @param {int} [since] timestamp in ms of the earliest trade to fetch
          * @param {int} [limit] the maximum amount of trades to fetch
-         * @param {object} [params] extra parameters specific to the exmo api endpoint
-         * @returns {object[]} a list of [trade structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#public-trades}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=public-trades}
          */
         await this.loadMarkets ();
         const market = this.market (symbol);
@@ -330,7 +328,7 @@ export default class exmo extends exmoRest {
         client.resolve (this.trades[symbol], messageHash);
     }
 
-    async watchMyTrades (symbol: string = undefined, since: Int = undefined, limit: Int = undefined, params = {}) {
+    async watchMyTrades (symbol: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}) {
         /**
          * @method
          * @name exmo#watchTrades
@@ -338,8 +336,8 @@ export default class exmo extends exmoRest {
          * @param {string} symbol unified symbol of the market to fetch trades for
          * @param {int} [since] timestamp in ms of the earliest trade to fetch
          * @param {int} [limit] the maximum amount of trades to fetch
-         * @param {object} [params] extra parameters specific to the exmo api endpoint
-         * @returns {object[]} a list of [trade structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#public-trades}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=public-trades}
          */
         await this.loadMarkets ();
         await this.authenticate (params);
@@ -466,8 +464,8 @@ export default class exmo extends exmoRest {
          * @description watches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
          * @param {string} symbol unified symbol of the market to fetch the order book for
          * @param {int} [limit] the maximum amount of order book entries to return
-         * @param {object} [params] extra parameters specific to the exmo api endpoint
-         * @returns {object} A dictionary of [order book structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#order-book-structure} indexed by market symbols
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} A dictionary of [order book structures]{@link https://docs.ccxt.com/#/?id=order-book-structure} indexed by market symbols
          */
         await this.loadMarkets ();
         const market = this.market (symbol);

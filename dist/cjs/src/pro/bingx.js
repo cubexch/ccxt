@@ -76,7 +76,7 @@ class bingx extends bingx$1 {
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
          * @param {int} [limit] the maximum number of  orde structures to retrieve
-         * @param {object} [params] extra parameters specific to the bingx api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure
          */
         await this.loadMarkets();
@@ -194,7 +194,7 @@ class bingx extends bingx$1 {
          * @see https://bingx-api.github.io/docs/#/swapV2/socket/market.html#Subscribe%20Market%20Depth%20Data
          * @param {string} symbol unified symbol of the market to fetch the order book for
          * @param {int} [limit] the maximum amount of order book entries to return
-         * @param {object} [params] extra parameters specific to the bingx api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} A dictionary of [order book structures]{@link https://docs.ccxt.com/#/?id=order-book-structure} indexed by market symbols
          */
         await this.loadMarkets();
@@ -299,11 +299,12 @@ class bingx extends bingx$1 {
         //        "h": "28915.4",
         //        "l": "28896.1",
         //        "v": "27.6919",
-        //        "T": 1690907580000
+        //        "T": 1696687499999,
+        //        "t": 1696687440000
         //    }
         //
         return [
-            this.safeInteger(ohlcv, 'T'),
+            this.safeInteger(ohlcv, 't'),
             this.safeNumber(ohlcv, 'o'),
             this.safeNumber(ohlcv, 'h'),
             this.safeNumber(ohlcv, 'l'),
@@ -395,7 +396,7 @@ class bingx extends bingx$1 {
          * @param {string} timeframe the length of time each candle represents
          * @param {int} [since] timestamp in ms of the earliest candle to fetch
          * @param {int} [limit] the maximum amount of candles to fetch
-         * @param {object} [params] extra parameters specific to the bingx api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {int[][]} A list of candles ordered as timestamp, open, high, low, close, volume
          */
         const market = this.market(symbol);
@@ -432,7 +433,7 @@ class bingx extends bingx$1 {
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
          * @param {int} [limit] the maximum number of  orde structures to retrieve
-         * @param {object} [params] extra parameters specific to the bingx api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
         await this.loadMarkets();
@@ -479,8 +480,8 @@ class bingx extends bingx$1 {
          * @param {string} symbol unified market symbol of the market trades were made in
          * @param {int} [since] the earliest time in ms to trades orders for
          * @param {int} [limit] the maximum number of trades structures to retrieve
-         * @param {object} [params] extra parameters specific to the bingx api endpoint
-         * @returns {object[]} a list of [trade structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#trade-structure
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=trade-structure
          */
         await this.loadMarkets();
         await this.authenticate();
@@ -523,7 +524,7 @@ class bingx extends bingx$1 {
          * @see https://bingx-api.github.io/docs/#/spot/socket/account.html#Subscription%20order%20update%20data
          * @see https://bingx-api.github.io/docs/#/swapV2/socket/account.html#Account%20balance%20and%20position%20update%20push
          * @description query for balance and get the amount of funds available for trading or funds locked in orders
-         * @param {object} [params] extra parameters specific to the bingx api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} a [balance structure]{@link https://docs.ccxt.com/en/latest/manual.html?#balance-structure}
          */
         await this.loadMarkets();
@@ -597,16 +598,22 @@ class bingx extends bingx$1 {
         // swap
         // Ping
         //
-        if (message === 'Ping') {
-            await client.send('Pong');
+        try {
+            if (message === 'Ping') {
+                await client.send('Pong');
+            }
+            else {
+                const ping = this.safeString(message, 'ping');
+                const time = this.safeString(message, 'time');
+                await client.send({
+                    'pong': ping,
+                    'time': time,
+                });
+            }
         }
-        else {
-            const ping = this.safeString(message, 'ping');
-            const time = this.safeString(message, 'time');
-            await client.send({
-                'pong': ping,
-                'time': time,
-            });
+        catch (e) {
+            const error = new errors.NetworkError(this.id + ' pong failed with error ' + this.json(e));
+            client.reset(error);
         }
     }
     handleOrder(client, message) {

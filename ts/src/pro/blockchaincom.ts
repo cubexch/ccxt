@@ -3,7 +3,7 @@
 import blockchaincomRest from '../blockchaincom.js';
 import { NotSupported, AuthenticationError, ExchangeError } from '../base/errors.js';
 import { ArrayCache, ArrayCacheBySymbolById, ArrayCacheByTimestamp } from '../base/ws/Cache.js';
-import { IndexType, Int } from '../base/types.js';
+import { IndexType, Int, Str } from '../base/types.js';
 import Client from '../base/ws/Client.js';
 
 //  ---------------------------------------------------------------------------
@@ -59,8 +59,8 @@ export default class blockchaincom extends blockchaincomRest {
          * @name blockchaincom#watchBalance
          * @description watch balance and get the amount of funds available for trading or funds locked in orders
          * @see https://exchange.blockchain.com/api/#balances
-         * @param {object} [params] extra parameters specific to the blockchaincom api endpoint
-         * @returns {object} a [balance structure]{@link https://github.com/ccxt/ccxt/wiki/Manual#balance-structure}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
          */
         await this.authenticate (params);
         const messageHash = 'balance';
@@ -114,12 +114,12 @@ export default class blockchaincom extends blockchaincomRest {
             const currencyId = this.safeString (entry, 'currency');
             const code = this.safeCurrencyCode (currencyId);
             const account = this.account ();
-            account['free'] = this.safeNumber (entry, 'available');
-            account['total'] = this.safeNumber (entry, 'balance');
+            account['free'] = this.safeString (entry, 'available');
+            account['total'] = this.safeString (entry, 'balance');
             result[code] = account;
         }
         const messageHash = 'balance';
-        this.balance = result;
+        this.balance = this.safeBalance (result);
         client.resolve (this.balance, messageHash);
     }
 
@@ -133,7 +133,7 @@ export default class blockchaincom extends blockchaincomRest {
          * @param {string} timeframe the length of time each candle represents. Allows '1m', '5m', '15m', '1h', '6h' '1d'. Can only watch one timeframe per symbol.
          * @param {int} [since] timestamp in ms of the earliest candle to fetch
          * @param {int} [limit] the maximum amount of candles to fetch
-         * @param {object} [params] extra parameters specific to the bitfinex2 api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {int[][]} A list of candles ordered as timestamp, open, high, low, close, volume
          */
         await this.loadMarkets ();
@@ -210,8 +210,8 @@ export default class blockchaincom extends blockchaincomRest {
          * @description watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific market
          * @see https://exchange.blockchain.com/api/#ticker
          * @param {string} symbol unified symbol of the market to fetch the ticker for
-         * @param {object} [params] extra parameters specific to the blockchaincom api endpoint
-         * @returns {object} a [ticker structure]{@link https://github.com/ccxt/ccxt/wiki/Manual#ticker-structure}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
          */
         await this.loadMarkets ();
         const market = this.market (symbol);
@@ -320,8 +320,8 @@ export default class blockchaincom extends blockchaincomRest {
          * @param {string} symbol unified symbol of the market to fetch trades for
          * @param {int} [since] timestamp in ms of the earliest trade to fetch
          * @param {int} [limit] the maximum amount of    trades to fetch
-         * @param {object} [params] extra parameters specific to the blockchaincom api endpoint
-         * @returns {object[]} a list of [trade structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#public-trades}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=public-trades}
          */
         await this.loadMarkets ();
         const market = this.market (symbol);
@@ -413,7 +413,7 @@ export default class blockchaincom extends blockchaincomRest {
         }, market);
     }
 
-    async watchOrders (symbol: string = undefined, since: Int = undefined, limit: Int = undefined, params = {}) {
+    async watchOrders (symbol: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}) {
         /**
          * @method
          * @name blockchaincom#fetchOrders
@@ -422,8 +422,8 @@ export default class blockchaincom extends blockchaincomRest {
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
          * @param {int} [limit] the maximum number of  orde structures to retrieve
-         * @param {object} [params] extra parameters specific to the blockchaincom api endpoint
-         * @returns {object[]} a list of [order structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
         await this.loadMarkets ();
         await this.authenticate ();
@@ -636,9 +636,9 @@ export default class blockchaincom extends blockchaincomRest {
          * @see https://exchange.blockchain.com/api/#l2-order-book
          * @param {string} symbol unified symbol of the market to fetch the order book for
          * @param {int} [limit] the maximum amount of order book entries to return
-         * @param {objectConstructor} [params] extra parameters specific to the blockchaincom api endpoint
+         * @param {objectConstructor} [params] extra parameters specific to the exchange API endpoint
          * @param {string} [params.type] accepts l2 or l3 for level 2 or level 3 order book
-         * @returns {object} A dictionary of [order book structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#order-book-structure} indexed by market symbols
+         * @returns {object} A dictionary of [order book structures]{@link https://docs.ccxt.com/#/?id=order-book-structure} indexed by market symbols
          */
         await this.loadMarkets ();
         const market = this.market (symbol);

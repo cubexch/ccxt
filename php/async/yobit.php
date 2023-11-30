@@ -40,11 +40,10 @@ class yobit extends Exchange {
                 'createStopMarketOrder' => false,
                 'createStopOrder' => false,
                 'fetchBalance' => true,
-                'fetchBorrowRate' => false,
                 'fetchBorrowRateHistories' => false,
                 'fetchBorrowRateHistory' => false,
-                'fetchBorrowRates' => false,
-                'fetchBorrowRatesPerSymbol' => false,
+                'fetchCrossBorrowRate' => false,
+                'fetchCrossBorrowRates' => false,
                 'fetchDepositAddress' => true,
                 'fetchDeposits' => false,
                 'fetchFundingHistory' => false,
@@ -52,6 +51,8 @@ class yobit extends Exchange {
                 'fetchFundingRateHistory' => false,
                 'fetchFundingRates' => false,
                 'fetchIndexOHLCV' => false,
+                'fetchIsolatedBorrowRate' => false,
+                'fetchIsolatedBorrowRates' => false,
                 'fetchLeverage' => false,
                 'fetchLeverageTiers' => false,
                 'fetchMarginMode' => false,
@@ -302,13 +303,13 @@ class yobit extends Exchange {
         return $this->safe_balance($result);
     }
 
-    public function fetch_balance($params = array ()) {
+    public function fetch_balance($params = array ()): PromiseInterface {
         return Async\async(function () use ($params) {
             /**
              * @see https://yobit.net/en/api
              * query for balance and get the amount of funds available for trading or funds locked in orders
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#balance-structure balance structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=balance-structure balance structure~
              */
             Async\await($this->load_markets());
             $response = Async\await($this->privatePostGetInfo ($params));
@@ -346,7 +347,7 @@ class yobit extends Exchange {
             /**
              * @see https://yobit.net/en/api
              * retrieves data on all $markets for yobit
-             * @param {array} [$params] extra parameters specific to the exchange api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array[]} an array of objects representing $market data
              */
             $response = Async\await($this->publicGetInfo ($params));
@@ -446,8 +447,8 @@ class yobit extends Exchange {
              * fetches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
              * @param {string} $symbol unified $symbol of the $market to fetch the order book for
              * @param {int} [$limit] the maximum amount of order book entries to return
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} A dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-book-structure order book structures} indexed by $market symbols
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} A dictionary of ~@link https://docs.ccxt.com/#/?id=order-book-structure order book structures~ indexed by $market symbols
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -474,8 +475,8 @@ class yobit extends Exchange {
              * fetches information on open orders with bid (buy) and ask (sell) prices, volumes and other data for multiple markets
              * @param {string[]|null} $symbols list of unified market $symbols, all $symbols fetched if null, default is null
              * @param {int} [$limit] max number of entries per orderbook to return, default is null
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} a dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-book-structure order book structures} indexed by market $symbol
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a dictionary of ~@link https://docs.ccxt.com/#/?$id=order-book-structure order book structures~ indexed by market $symbol
              */
             Async\await($this->load_markets());
             $ids = null;
@@ -509,7 +510,7 @@ class yobit extends Exchange {
         }) ();
     }
 
-    public function parse_ticker($ticker, $market = null): array {
+    public function parse_ticker($ticker, ?array $market = null): array {
         //
         //     {
         //         "high" => 0.03497582,
@@ -549,14 +550,14 @@ class yobit extends Exchange {
         ), $market);
     }
 
-    public function fetch_tickers(?array $symbols = null, $params = array ()) {
+    public function fetch_tickers(?array $symbols = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($symbols, $params) {
             /**
              * @see https://yobit.net/en/api
-             * fetches price $tickers for multiple markets, statistical calculations with the information calculated over the past 24 hours each $market
+             * fetches price $tickers for multiple markets, statistical information calculated over the past 24 hours for each $market
              * @param {string[]|null} $symbols unified $symbols of the markets to fetch the $ticker for, all $market $tickers are returned if not assigned
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} a dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#$ticker-structure $ticker structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a dictionary of ~@link https://docs.ccxt.com/#/?$id=$ticker-structure $ticker structures~
              */
             if ($symbols === null) {
                 throw new ArgumentsRequired($this->id . ' fetchTickers() requires "symbols" argument');
@@ -601,15 +602,15 @@ class yobit extends Exchange {
              * @see https://yobit.net/en/api
              * fetches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific market
              * @param {string} $symbol unified $symbol of the market to fetch the ticker for
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#ticker-structure ticker structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=ticker-structure ticker structure~
              */
             $tickers = Async\await($this->fetch_tickers(array( $symbol ), $params));
             return $tickers[$symbol];
         }) ();
     }
 
-    public function parse_trade($trade, $market = null): array {
+    public function parse_trade($trade, ?array $market = null): array {
         //
         // fetchTrades (public)
         //
@@ -696,8 +697,8 @@ class yobit extends Exchange {
              * @param {string} $symbol unified $symbol of the $market to fetch trades for
              * @param {int} [$since] timestamp in ms of the earliest trade to fetch
              * @param {int} [$limit] the maximum amount of trades to fetch
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {Trade[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#public-trades trade structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {Trade[]} a list of ~@link https://docs.ccxt.com/#/?id=public-trades trade structures~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -737,8 +738,8 @@ class yobit extends Exchange {
             /**
              * @see https://yobit.net/en/api
              * fetch the trading fees for multiple markets
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} a dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#fee-structure fee structures} indexed by market symbols
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a dictionary of ~@link https://docs.ccxt.com/#/?id=fee-structure fee structures~ indexed by market symbols
              */
             Async\await($this->load_markets());
             $response = Async\await($this->publicGetInfo ($params));
@@ -795,8 +796,8 @@ class yobit extends Exchange {
              * @param {string} $side 'buy' or 'sell'
              * @param {float} $amount how much of currency you want to trade in units of base currency
              * @param {float} [$price] the $price at which the order is to be fullfilled, in units of the quote currency, ignored in $market orders
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} an {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} an ~@link https://docs.ccxt.com/#/?id=order-structure order structure~
              */
             if ($type === 'market') {
                 throw new ExchangeError($this->id . ' createOrder() allows limit orders only');
@@ -843,8 +844,8 @@ class yobit extends Exchange {
              * cancels an open order
              * @param {string} $id order $id
              * @param {string} $symbol not used by yobit cancelOrder ()
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} An {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} An ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
              */
             Async\await($this->load_markets());
             $request = array(
@@ -885,7 +886,7 @@ class yobit extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
-    public function parse_order($order, $market = null): array {
+    public function parse_order($order, ?array $market = null): array {
         //
         // createOrder (private)
         //
@@ -995,8 +996,8 @@ class yobit extends Exchange {
              * @see https://yobit.net/en/api
              * fetches information on an order made by the user
              * @param {string} $symbol not used by yobit fetchOrder
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} An {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} An ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
              */
             Async\await($this->load_markets());
             $request = array(
@@ -1033,10 +1034,12 @@ class yobit extends Exchange {
              * @param {string} $symbol unified $market $symbol
              * @param {int} [$since] the earliest time in ms to fetch open orders for
              * @param {int} [$limit] the maximum number of open order structures to retrieve
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {Order[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {Order[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
              */
-            $this->check_required_symbol('fetchOpenOrders', $symbol);
+            if ($symbol === null) {
+                throw new ArgumentsRequired($this->id . ' fetchOpenOrders() requires a $symbol argument');
+            }
             Async\await($this->load_markets());
             $request = array();
             $market = null;
@@ -1081,10 +1084,12 @@ class yobit extends Exchange {
              * @param {string} $symbol unified $market $symbol
              * @param {int} [$since] the earliest time in ms to fetch $trades for
              * @param {int} [$limit] the maximum number of $trades structures to retrieve
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {Trade[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#$trade-structure $trade structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {Trade[]} a list of ~@link https://docs.ccxt.com/#/?$id=$trade-structure $trade structures~
              */
-            $this->check_required_symbol('fetchMyTrades', $symbol);
+            if ($symbol === null) {
+                throw new ArgumentsRequired($this->id . ' fetchMyTrades() requires a $symbol argument');
+            }
             Async\await($this->load_markets());
             $market = $this->market($symbol);
             // some derived classes use camelcase notation for $request fields
@@ -1141,8 +1146,8 @@ class yobit extends Exchange {
              * @see https://yobit.net/en/api
              * create a currency deposit $address
              * @param {string} $code unified currency $code of the currency for the deposit $address
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} an {@link https://github.com/ccxt/ccxt/wiki/Manual#$address-structure $address structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} an ~@link https://docs.ccxt.com/#/?id=$address-structure $address structure~
              */
             $request = array(
                 'need_new' => 1,
@@ -1165,8 +1170,8 @@ class yobit extends Exchange {
              * @see https://yobit.net/en/api
              * fetch the deposit $address for a $currency associated with this account
              * @param {string} $code unified $currency $code
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} an {@link https://github.com/ccxt/ccxt/wiki/Manual#$address-structure $address structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} an ~@link https://docs.ccxt.com/#/?id=$address-structure $address structure~
              */
             Async\await($this->load_markets());
             $currency = $this->currency($code);
@@ -1206,8 +1211,8 @@ class yobit extends Exchange {
              * @param {float} $amount the $amount to withdraw
              * @param {string} $address the $address to withdraw to
              * @param {string} $tag
-             * @param {array} [$params] extra parameters specific to the yobit api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#transaction-structure transaction structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=transaction-structure transaction structure~
              */
             list($tag, $params) = $this->handle_withdraw_tag_and_params($tag, $params);
             $this->check_address($address);

@@ -67,8 +67,8 @@ class deribit extends \ccxt\async\deribit {
             /**
              * @see https://docs.deribit.com/#user-portfolio-currency
              * watch balance and get the amount of funds available for trading or funds locked in orders
-             * @param {array} [$params] extra parameters specific to the deribit api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#balance-structure balance structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=balance-structure balance structure~
              */
             Async\await($this->authenticate($params));
             $messageHash = 'balance';
@@ -153,9 +153,9 @@ class deribit extends \ccxt\async\deribit {
              * @see https://docs.deribit.com/#ticker-instrument_name-$interval
              * watches a price ticker, a statistical calculation with the information for a specific $market->
              * @param {string} $symbol unified $symbol of the $market to fetch the ticker for
-             * @param {array} [$params] extra parameters specific to the deribit api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {str} [$params->interval] specify aggregation and frequency of notifications. Possible values => 100ms, raw
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#ticker-structure ticker structure}
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=ticker-structure ticker structure~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -228,9 +228,9 @@ class deribit extends \ccxt\async\deribit {
              * @param {string} $symbol unified $symbol of the $market to fetch $trades for
              * @param {int} [$since] timestamp in ms of the earliest trade to fetch
              * @param {int} [$limit] the maximum amount of $trades to fetch
-             * @param {array} [$params] extra parameters specific to the deribit api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {str} [$params->interval] specify aggregation and frequency of notifications. Possible values => 100ms, raw
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#public-$trades trade structures}
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=public-$trades trade structures~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -310,9 +310,9 @@ class deribit extends \ccxt\async\deribit {
              * @param {string} $symbol unified $symbol of the market to fetch $trades for. Use 'any' to watch all $trades
              * @param {int} [$since] timestamp in ms of the earliest trade to fetch
              * @param {int} [$limit] the maximum amount of $trades to fetch
-             * @param {array} [$params] extra parameters specific to the deribit api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {str} [$params->interval] specify aggregation and frequency of notifications. Possible values => 100ms, raw
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#public-$trades trade structures}
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=public-$trades trade structures~
              */
             Async\await($this->authenticate($params));
             if ($symbol !== null) {
@@ -396,9 +396,9 @@ class deribit extends \ccxt\async\deribit {
              * watches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
              * @param {string} $symbol unified $symbol of the $market to fetch the order book for
              * @param {int} [$limit] the maximum amount of order book entries to return
-             * @param {array} [$params] extra parameters specific to the deribit api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {string} [$params->interval] Frequency of notifications. Events will be aggregated over this $interval-> Possible values => 100ms, raw
-             * @return {array} A dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-book-structure order book structures} indexed by $market symbols
+             * @return {array} A dictionary of ~@link https://docs.ccxt.com/#/?id=order-book-structure order book structures~ indexed by $market symbols
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -531,8 +531,8 @@ class deribit extends \ccxt\async\deribit {
              * @param {string} $symbol unified market $symbol of the market $orders were made in
              * @param {int} [$since] the earliest time in ms to fetch $orders for
              * @param {int} [$limit] the maximum number of  orde structures to retrieve
-             * @param {array} [$params] extra parameters specific to the deribit api endpoint
-             * @return {array[]} a list of [order structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure
              */
             Async\await($this->load_markets());
             Async\await($this->authenticate($params));
@@ -627,7 +627,7 @@ class deribit extends \ccxt\async\deribit {
              * @param {string} $timeframe the length of time each candle represents
              * @param {int} [$since] timestamp in ms of the earliest candle to fetch
              * @param {int} [$limit] the maximum amount of candles to fetch
-             * @param {array} [$params] extra parameters specific to the deribit api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {int[][]} A list of candles ordered, open, high, low, close, volume
              */
             Async\await($this->load_markets());

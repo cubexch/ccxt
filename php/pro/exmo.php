@@ -52,8 +52,8 @@ class exmo extends \ccxt\async\exmo {
         return Async\async(function () use ($params) {
             /**
              * watch balance and get the amount of funds available for trading or funds locked in orders
-             * @param {array} [$params] extra parameters specific to the exmo api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#balance-structure balance structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=balance-structure balance structure~
              */
             Async\await($this->authenticate($params));
             list($type, $query) = $this->handle_market_type_and_params('watchBalance', null, $params);
@@ -158,19 +158,17 @@ class exmo extends \ccxt\async\exmo {
             for ($i = 0; $i < count($currencies); $i++) {
                 $currencyId = $currencies[$i];
                 $code = $this->safe_currency_code($currencyId);
-                $free = $balances[$currencyId];
-                $used = $reserved[$currencyId];
                 $account = $this->account();
-                $account['free'] = $this->parse_number($free);
-                $account['used'] = $this->parse_number($used);
+                $account['free'] = $this->safe_string($balances, $currencyId);
+                $account['used'] = $this->safe_string($reserved, $currencyId);
                 $this->balance[$code] = $account;
             }
         } elseif ($event === 'update') {
             $currencyId = $this->safe_string($data, 'currency');
             $code = $this->safe_currency_code($currencyId);
             $account = $this->account();
-            $account['free'] = $this->safe_number($data, 'balance');
-            $account['used'] = $this->safe_number($data, 'reserved');
+            $account['free'] = $this->safe_string($data, 'balance');
+            $account['used'] = $this->safe_string($data, 'reserved');
             $this->balance[$code] = $account;
         }
         $this->balance = $this->safe_balance($this->balance);
@@ -199,9 +197,9 @@ class exmo extends \ccxt\async\exmo {
             $code = $this->safe_currency_code($currencyId);
             $wallet = $this->safe_value($data, $currencyId);
             $account = $this->account();
-            $account['free'] = $this->safe_number($wallet, 'free');
-            $account['used'] = $this->safe_number($wallet, 'used');
-            $account['total'] = $this->safe_number($wallet, 'balance');
+            $account['free'] = $this->safe_string($wallet, 'free');
+            $account['used'] = $this->safe_string($wallet, 'used');
+            $account['total'] = $this->safe_string($wallet, 'balance');
             $this->balance[$code] = $account;
             $this->balance = $this->safe_balance($this->balance);
         }
@@ -212,8 +210,8 @@ class exmo extends \ccxt\async\exmo {
             /**
              * watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific $market
              * @param {string} $symbol unified $symbol of the $market to fetch the ticker for
-             * @param {array} [$params] extra parameters specific to the exmo api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#ticker-structure ticker structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=ticker-structure ticker structure~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -271,8 +269,8 @@ class exmo extends \ccxt\async\exmo {
              * @param {string} $symbol unified $symbol of the $market to fetch $trades for
              * @param {int} [$since] timestamp in ms of the earliest trade to fetch
              * @param {int} [$limit] the maximum amount of $trades to fetch
-             * @param {array} [$params] extra parameters specific to the exmo api endpoint
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#public-$trades trade structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=public-$trades trade structures~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -337,8 +335,8 @@ class exmo extends \ccxt\async\exmo {
              * @param {string} $symbol unified $symbol of the $market to fetch $trades for
              * @param {int} [$since] timestamp in ms of the earliest trade to fetch
              * @param {int} [$limit] the maximum amount of $trades to fetch
-             * @param {array} [$params] extra parameters specific to the exmo api endpoint
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#public-$trades trade structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=public-$trades trade structures~
              */
             Async\await($this->load_markets());
             Async\await($this->authenticate($params));
@@ -465,8 +463,8 @@ class exmo extends \ccxt\async\exmo {
              * watches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
              * @param {string} $symbol unified $symbol of the $market to fetch the order book for
              * @param {int} [$limit] the maximum amount of order book entries to return
-             * @param {array} [$params] extra parameters specific to the exmo api endpoint
-             * @return {array} A dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-book-structure order book structures} indexed by $market symbols
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} A dictionary of ~@link https://docs.ccxt.com/#/?id=order-book-structure order book structures~ indexed by $market symbols
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);

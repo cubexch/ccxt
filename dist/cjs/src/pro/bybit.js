@@ -12,6 +12,15 @@ class bybit extends bybit$1 {
         return this.deepExtend(super.describe(), {
             'has': {
                 'ws': true,
+                'createOrderWs': false,
+                'editOrderWs': false,
+                'fetchOpenOrdersWs': false,
+                'fetchOrderWs': false,
+                'cancelOrderWs': false,
+                'cancelOrdersWs': false,
+                'cancelAllOrdersWs': false,
+                'fetchTradesWs': false,
+                'fetchBalanceWs': false,
                 'watchBalance': true,
                 'watchMyTrades': true,
                 'watchOHLCV': true,
@@ -168,8 +177,8 @@ class bybit extends bybit$1 {
          * @see https://bybit-exchange.github.io/docs/v5/websocket/public/ticker
          * @see https://bybit-exchange.github.io/docs/v5/websocket/public/etp-ticker
          * @param {string} symbol unified symbol of the market to fetch the ticker for
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
-         * @returns {object} a [ticker structure]{@link https://github.com/ccxt/ccxt/wiki/Manual#ticker-structure}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
          */
         await this.loadMarkets();
         const market = this.market(symbol);
@@ -194,8 +203,8 @@ class bybit extends bybit$1 {
          * @see https://bybit-exchange.github.io/docs/v5/websocket/public/ticker
          * @see https://bybit-exchange.github.io/docs/v5/websocket/public/etp-ticker
          * @param {string[]} symbols unified symbol of the market to fetch the ticker for
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
-         * @returns {object} a [ticker structure]{@link https://github.com/ccxt/ccxt/wiki/Manual#ticker-structure}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
          */
         await this.loadMarkets();
         symbols = this.marketSymbols(symbols, undefined, false);
@@ -369,7 +378,7 @@ class bybit extends bybit$1 {
          * @param {string} timeframe the length of time each candle represents
          * @param {int} [since] timestamp in ms of the earliest candle to fetch
          * @param {int} [limit] the maximum amount of candles to fetch
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {int[][]} A list of candles ordered as timestamp, open, high, low, close, volume
          */
         await this.loadMarkets();
@@ -397,7 +406,7 @@ class bybit extends bybit$1 {
          * @param {string[][]} symbolsAndTimeframes array of arrays containing unified symbols and timeframes to fetch OHLCV data for, example [['BTC/USDT', '1m'], ['LTC/USDT', '5m']]
          * @param {int} [since] timestamp in ms of the earliest candle to fetch
          * @param {int} [limit] the maximum amount of candles to fetch
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} A list of candles ordered as timestamp, open, high, low, close, volume
          */
         await this.loadMarkets();
@@ -512,8 +521,8 @@ class bybit extends bybit$1 {
          * @see https://bybit-exchange.github.io/docs/v5/websocket/public/orderbook
          * @param {string} symbol unified symbol of the market to fetch the order book for
          * @param {int} [limit] the maximum amount of order book entries to return.
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
-         * @returns {object} A dictionary of [order book structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#order-book-structure} indexed by market symbols
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} A dictionary of [order book structures]{@link https://docs.ccxt.com/#/?id=order-book-structure} indexed by market symbols
          */
         await this.loadMarkets();
         const market = this.market(symbol);
@@ -549,7 +558,7 @@ class bybit extends bybit$1 {
          * @see https://bybit-exchange.github.io/docs/v5/websocket/public/orderbook
          * @param {string[]} symbols unified array of symbols
          * @param {int} [limit] the maximum amount of order book entries to return.
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} A dictionary of [order book structures]{@link https://docs.ccxt.com/#/?id=order-book-structure} indexed by market symbols
          */
         await this.loadMarkets();
@@ -666,8 +675,8 @@ class bybit extends bybit$1 {
          * @param {string} symbol unified market symbol of the market trades were made in
          * @param {int} [since] the earliest time in ms to fetch trades for
          * @param {int} [limit] the maximum number of trade structures to retrieve
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
-         * @returns {object[]} a list of [trade structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#trade-structure
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=trade-structure
          */
         await this.loadMarkets();
         const market = this.market(symbol);
@@ -691,7 +700,7 @@ class bybit extends bybit$1 {
          * @param {string[]} symbols unified symbol of the market to fetch trades for
          * @param {int} [since] timestamp in ms of the earliest trade to fetch
          * @param {int} [limit] the maximum amount of trades to fetch
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} a list of [trade structures]{@link https://docs.ccxt.com/en/latest/manual.html?#public-trades}
          */
         await this.loadMarkets();
@@ -853,9 +862,9 @@ class bybit extends bybit$1 {
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
          * @param {int} [limit] the maximum number of  orde structures to retrieve
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @param {boolean} [params.unifiedMargin] use unified margin account
-         * @returns {object[]} a list of [order structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure
+         * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure
          */
         const method = 'watchMyTrades';
         let messageHash = 'myTrades';
@@ -976,9 +985,9 @@ class bybit extends bybit$1 {
          * @name bybit#watchPositions
          * @see https://bybit-exchange.github.io/docs/v5/websocket/private/position
          * @description watch all open positions
-         * @param {[string]|undefined} symbols list of unified market symbols
-         * @param {object} params extra parameters specific to the bybit api endpoint
-         * @returns {[object]} a list of [position structure]{@link https://docs.ccxt.com/en/latest/manual.html#position-structure}
+         * @param {string[]|undefined} symbols list of unified market symbols
+         * @param {object} params extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [position structure]{@link https://docs.ccxt.com/en/latest/manual.html#position-structure}
          */
         await this.loadMarkets();
         const method = 'watchPositions';
@@ -1118,8 +1127,8 @@ class bybit extends bybit$1 {
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
          * @param {int} [limit] the maximum number of  orde structures to retrieve
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
-         * @returns {object[]} a list of [order structures]{@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure
          */
         await this.loadMarkets();
         const method = 'watchOrders';
@@ -1401,8 +1410,8 @@ class bybit extends bybit$1 {
          * @name bybit#watchBalance
          * @description watch balance and get the amount of funds available for trading or funds locked in orders
          * @see https://bybit-exchange.github.io/docs/v5/websocket/private/wallet
-         * @param {object} [params] extra parameters specific to the bybit api endpoint
-         * @returns {object} a [balance structure]{@link https://github.com/ccxt/ccxt/wiki/Manual#balance-structure}
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
          */
         await this.loadMarkets();
         const method = 'watchBalance';
@@ -1698,7 +1707,7 @@ class bybit extends bybit$1 {
             'args': topics,
         };
         const message = this.extend(request, params);
-        return await this.watch(url, messageHash, message, subscriptionHash);
+        return await this.watch(url, messageHash, message, messageHash, subscriptionHash);
     }
     async authenticate(url, params = {}) {
         this.checkRequiredCredentials();

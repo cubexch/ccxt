@@ -154,8 +154,8 @@ class kucoinfutures extends \ccxt\async\kucoinfutures {
              * watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific $market
              * @see https://docs.kucoin.com/futures/#get-real-time-$symbol-ticker-v2
              * @param {string} $symbol unified $symbol of the $market to fetch the ticker for
-             * @param {array} [$params] extra parameters specific to the kucoinfutures api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#ticker-structure ticker structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=ticker-structure ticker structure~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -204,10 +204,12 @@ class kucoinfutures extends \ccxt\async\kucoinfutures {
              * watch open positions for a specific $symbol
              * @see https://docs.kucoin.com/futures/#position-change-events
              * @param {string|null} $symbol unified $market $symbol
-             * @param {array} $params extra parameters specific to the kucoinfutures api endpoint
+             * @param {array} $params extra parameters specific to the exchange API endpoint
              * @return {array} a {@link https://docs.ccxt.com/en/latest/manual.html#position-structure position structure}
              */
-            $this->check_required_symbol('watchPosition', $symbol);
+            if ($symbol === null) {
+                throw new ArgumentsRequired($this->id . ' watchPosition() requires a $symbol argument');
+            }
             Async\await($this->load_markets());
             $url = Async\await($this->negotiate(true));
             $market = $this->market($symbol);
@@ -385,8 +387,8 @@ class kucoinfutures extends \ccxt\async\kucoinfutures {
              * @param {string} $symbol unified $symbol of the $market to fetch $trades for
              * @param {int} [$since] timestamp in ms of the earliest trade to fetch
              * @param {int} [$limit] the maximum amount of $trades to fetch
-             * @param {array} [$params] extra parameters specific to the kucoinfutures api endpoint
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#public-$trades trade structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=public-$trades trade structures~
              */
             Async\await($this->load_markets());
             $url = Async\await($this->negotiate(false));
@@ -409,7 +411,7 @@ class kucoinfutures extends \ccxt\async\kucoinfutures {
              * @param {string} symbol unified symbol of the market to fetch $trades for
              * @param {int} [$since] timestamp in ms of the earliest trade to fetch
              * @param {int} [$limit] the maximum amount of $trades to fetch
-             * @param {array} [$params] extra parameters specific to the kucoinfutures api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array[]} a list of ~@link https://docs.ccxt.com/en/latest/manual.html?#public-$trades trade structures~
              */
             $symbolsLength = count($symbols);
@@ -483,8 +485,8 @@ class kucoinfutures extends \ccxt\async\kucoinfutures {
              * @see https://docs.kucoin.com/futures/#level-2-$market-data
              * @param {string} $symbol unified $symbol of the $market to fetch the order book for
              * @param {int} [$limit] the maximum amount of order book entries to return
-             * @param {array} [$params] extra parameters specific to the kucoinfutures api endpoint
-             * @return {array} A dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-book-structure order book structures} indexed by $market symbols
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} A dictionary of ~@link https://docs.ccxt.com/#/?id=order-book-structure order book structures~ indexed by $market symbols
              */
             if ($limit !== null) {
                 if (($limit !== 20) && ($limit !== 100)) {
@@ -513,7 +515,7 @@ class kucoinfutures extends \ccxt\async\kucoinfutures {
              * watches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
              * @param {string[]} $symbols unified array of $symbols
              * @param {int} [$limit] the maximum amount of order book entries to return
-             * @param {array} [$params] extra parameters specific to the kucoinfutures api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} A dictionary of ~@link https://docs.ccxt.com/#/?id=order-book-structure order book structures~ indexed by market $symbols
              */
             $symbolsLength = count($symbols);
@@ -696,8 +698,8 @@ class kucoinfutures extends \ccxt\async\kucoinfutures {
              * @param {string} $symbol unified $market $symbol of the $market $orders were made in
              * @param {int} [$since] the earliest time in ms to fetch $orders for
              * @param {int} [$limit] the maximum number of  orde structures to retrieve
-             * @param {array} [$params] extra parameters specific to the kucoinfutures api endpoint
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
              */
             Async\await($this->load_markets());
             $url = Async\await($this->negotiate(true));
@@ -822,8 +824,8 @@ class kucoinfutures extends \ccxt\async\kucoinfutures {
             /**
              * watch balance and get the amount of funds available for trading or funds locked in orders
              * @see https://docs.kucoin.com/futures/#account-balance-events
-             * @param {array} [$params] extra parameters specific to the kucoinfutures api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#balance-structure balance structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=balance-structure balance structure~
              */
             Async\await($this->load_markets());
             $url = Async\await($this->negotiate(true));

@@ -104,7 +104,7 @@ def assert_timestamp(exchange, skipped_properties, method, entry, now_to_check=N
     ts = entry[key_name_or_index]
     if ts is not None:
         assert isinstance(ts, numbers.Real), 'timestamp is not numeric' + log_text
-        assert isinstance(ts, numbers.Integral), 'timestamp should be an integer' + log_text
+        assert isinstance(ts, int), 'timestamp should be an integer' + log_text
         min_ts = 1230940800000  # 03 Jan 2009 - first block
         max_ts = 2147483648000  # 03 Jan 2009 - first block
         assert ts > min_ts, 'timestamp is impossible to be before ' + str(min_ts) + ' (03.01.2009)' + log_text  # 03 Jan 2009 - first block
@@ -243,7 +243,7 @@ def assert_in_array(exchange, skipped_properties, method, entry, key, expected_a
 def assert_fee_structure(exchange, skipped_properties, method, entry, key):
     log_text = log_template(exchange, method, entry)
     key_string = string_value(key)
-    if isinstance(key, numbers.Integral):
+    if isinstance(key, int):
         assert isinstance(entry, list), 'fee container is expected to be an array' + log_text
         assert key < len(entry), 'fee key ' + key_string + ' was expected to be present in entry' + log_text
     else:
@@ -277,7 +277,7 @@ def assert_integer(exchange, skipped_properties, method, entry, key):
     if entry is not None:
         value = exchange.safe_value(entry, key)
         if value is not None:
-            is_integer = isinstance(value, numbers.Integral)
+            is_integer = isinstance(value, int)
             assert is_integer, '\"' + string_value(key) + '\" key (value \"' + string_value(value) + '\") is not an integer' + log_text
 
 
@@ -298,3 +298,25 @@ def check_precision_accuracy(exchange, skipped_properties, method, entry, key):
         assert_integer(exchange, skipped_properties, method, entry, key)  # should be integer
         assert_less_or_equal(exchange, skipped_properties, method, entry, key, '18')  # should be under 18 decimals
         assert_greater_or_equal(exchange, skipped_properties, method, entry, key, '-8')  # in real-world cases, there would not be less than that
+
+
+def remove_proxy_options(exchange, skipped_properties):
+    proxy_url = exchange.check_proxy_url_settings()
+    [http_proxy, https_proxy, socks_proxy] = exchange.check_proxy_settings()
+    # because of bug in transpiled, about `.proxyUrl` being transpiled into `.proxy_url`, we have to use this workaround
+    exchange.set_property(exchange, 'proxyUrl', None)
+    exchange.set_property(exchange, 'proxy_url', None)
+    exchange.set_property(exchange, 'httpProxy', None)
+    exchange.set_property(exchange, 'http_proxy', None)
+    exchange.set_property(exchange, 'httpsProxy', None)
+    exchange.set_property(exchange, 'https_proxy', None)
+    exchange.set_property(exchange, 'socksProxy', None)
+    exchange.set_property(exchange, 'socks_proxy', None)
+    return [proxy_url, http_proxy, https_proxy, socks_proxy]
+
+
+def set_proxy_options(exchange, skipped_properties, proxy_url, http_proxy, https_proxy, socks_proxy):
+    exchange.proxy_url = proxy_url
+    exchange.http_proxy = http_proxy
+    exchange.https_proxy = https_proxy
+    exchange.socks_proxy = socks_proxy

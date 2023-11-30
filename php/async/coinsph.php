@@ -52,14 +52,13 @@ class coinsph extends Exchange {
                 'fetchBalance' => true,
                 'fetchBidsAsks' => false,
                 'fetchBorrowInterest' => false,
-                'fetchBorrowRate' => false,
                 'fetchBorrowRateHistories' => false,
                 'fetchBorrowRateHistory' => false,
-                'fetchBorrowRates' => false,
-                'fetchBorrowRatesPerSymbol' => false,
                 'fetchCanceledOrders' => false,
                 'fetchClosedOrder' => false,
                 'fetchClosedOrders' => true,
+                'fetchCrossBorrowRate' => false,
+                'fetchCrossBorrowRates' => false,
                 'fetchCurrencies' => false,
                 'fetchDeposit' => null,
                 'fetchDepositAddress' => true,
@@ -73,6 +72,8 @@ class coinsph extends Exchange {
                 'fetchFundingRateHistory' => false,
                 'fetchFundingRates' => false,
                 'fetchIndexOHLCV' => false,
+                'fetchIsolatedBorrowRate' => false,
+                'fetchIsolatedBorrowRates' => false,
                 'fetchL3OrderBook' => false,
                 'fetchLedger' => false,
                 'fetchLeverage' => false,
@@ -442,8 +443,8 @@ class coinsph extends Exchange {
         return Async\async(function () use ($params) {
             /**
              * the latest known information on the availability of the exchange API
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#exchange-status-structure status structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=exchange-status-structure status structure~
              */
             $response = Async\await($this->publicGetOpenapiV1Ping ($params));
             return array(
@@ -460,7 +461,7 @@ class coinsph extends Exchange {
         return Async\async(function () use ($params) {
             /**
              * fetches the current integer timestamp in milliseconds from the exchange server
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {int} the current integer timestamp in milliseconds from the exchange server
              */
             $response = Async\await($this->publicGetOpenapiV1Time ($params));
@@ -475,7 +476,7 @@ class coinsph extends Exchange {
         return Async\async(function () use ($params) {
             /**
              * retrieves data on all $markets for coinsph
-             * @param {array} [$params] extra parameters specific to the exchange api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array[]} an array of objects representing $market data
              */
             $response = Async\await($this->publicGetOpenapiV1ExchangeInfo ($params));
@@ -608,13 +609,13 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function fetch_tickers(?array $symbols = null, $params = array ()) {
+    public function fetch_tickers(?array $symbols = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($symbols, $params) {
             /**
-             * fetches price $tickers for multiple markets, statistical calculations with the information calculated over the past 24 hours each $market
+             * fetches price $tickers for multiple markets, statistical information calculated over the past 24 hours for each $market
              * @param {string[]|null} $symbols unified $symbols of the markets to fetch the ticker for, all $market $tickers are returned if not assigned
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} a dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#ticker-structure ticker structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a dictionary of ~@link https://docs.ccxt.com/#/?$id=ticker-structure ticker structures~
              */
             Async\await($this->load_markets());
             $request = array();
@@ -640,8 +641,8 @@ class coinsph extends Exchange {
             /**
              * fetches a price $ticker, a statistical calculation with the information calculated over the past 24 hours for a specific $market
              * @param {string} $symbol unified $symbol of the $market to fetch the $ticker for
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#$ticker-structure $ticker structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=$ticker-structure $ticker structure~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -656,7 +657,7 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function parse_ticker($ticker, $market = null): array {
+    public function parse_ticker($ticker, ?array $market = null): array {
         //
         // publicGetOpenapiQuoteV1Ticker24hr
         //     {
@@ -741,8 +742,8 @@ class coinsph extends Exchange {
              * fetches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
              * @param {string} $symbol unified $symbol of the $market to fetch the order book for
              * @param {int} [$limit] the maximum amount of order book entries to return (default 100, max 200)
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} A dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-book-structure order book structures} indexed by $market symbols
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} A dictionary of ~@link https://docs.ccxt.com/#/?id=order-book-structure order book structures~ indexed by $market symbols
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -780,7 +781,7 @@ class coinsph extends Exchange {
              * @param {string} $timeframe the length of time each candle represents
              * @param {int} [$since] timestamp in ms of the earliest candle to fetch
              * @param {int} [$limit] the maximum amount of candles to fetch (default 500, max 1000)
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {int[][]} A list of candles ordered, open, high, low, close, volume
              */
             Async\await($this->load_markets());
@@ -827,7 +828,7 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function parse_ohlcv($ohlcv, $market = null): array {
+    public function parse_ohlcv($ohlcv, ?array $market = null): array {
         return array(
             $this->safe_integer($ohlcv, 0),
             $this->safe_number($ohlcv, 1),
@@ -845,8 +846,8 @@ class coinsph extends Exchange {
              * @param {string} $symbol unified $symbol of the $market to fetch trades for
              * @param {int} [$since] timestamp in ms of the earliest trade to fetch
              * @param {int} [$limit] the maximum amount of trades to fetch (default 500, max 1000)
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {Trade[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#public-trades trade structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {Trade[]} a list of ~@link https://docs.ccxt.com/#/?id=public-trades trade structures~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -886,10 +887,12 @@ class coinsph extends Exchange {
              * @param {string} $symbol unified $market $symbol
              * @param {int} [$since] the earliest time in ms to fetch trades for
              * @param {int} [$limit] the maximum number of trades structures to retrieve (default 500, max 1000)
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {Trade[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#trade-structure trade structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {Trade[]} a list of ~@link https://docs.ccxt.com/#/?id=trade-structure trade structures~
              */
-            $this->check_required_symbol('fetchMyTrades', $symbol);
+            if ($symbol === null) {
+                throw new ArgumentsRequired($this->id . ' fetchMyTrades() requires a $symbol argument');
+            }
             Async\await($this->load_markets());
             $market = $this->market($symbol);
             $request = array(
@@ -915,10 +918,12 @@ class coinsph extends Exchange {
              * @param {string} $symbol unified market $symbol
              * @param {int} [$since] the earliest time in ms to fetch trades for
              * @param {int} [$limit] the maximum number of trades to retrieve
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#trade-structure trade structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?$id=trade-structure trade structures~
              */
-            $this->check_required_symbol('fetchOrderTrades', $symbol);
+            if ($symbol === null) {
+                throw new ArgumentsRequired($this->id . ' fetchOrderTrades() requires a $symbol argument');
+            }
             $request = array(
                 'orderId' => $id,
             );
@@ -926,7 +931,7 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function parse_trade($trade, $market = null): array {
+    public function parse_trade($trade, ?array $market = null): array {
         //
         // fetchTrades
         //     array(
@@ -1013,12 +1018,12 @@ class coinsph extends Exchange {
         ), $market);
     }
 
-    public function fetch_balance($params = array ()) {
+    public function fetch_balance($params = array ()): PromiseInterface {
         return Async\async(function () use ($params) {
             /**
              * query for balance and get the amount of funds available for trading or funds locked in orders
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#balance-structure balance structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=balance-structure balance structure~
              */
             Async\await($this->load_markets());
             $response = Async\await($this->privateGetOpenapiV1Account ($params));
@@ -1076,8 +1081,8 @@ class coinsph extends Exchange {
              * @param {string} $side 'buy' or 'sell'
              * @param {float} $amount how much of currency you want to trade in units of base currency
              * @param {float} [$price] the $price at which the order is to be fullfilled, in units of the quote currency, ignored in $market orders
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} an {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} an ~@link https://docs.ccxt.com/#/?id=order-structure order structure~
              */
             // todo => add test order low priority
             Async\await($this->load_markets());
@@ -1175,8 +1180,8 @@ class coinsph extends Exchange {
              * fetches information on an order made by the user
              * @param {int|string} $id order $id
              * @param {string} $symbol not used by coinsph fetchOrder ()
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} An {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} An ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
              */
             Async\await($this->load_markets());
             $request = array();
@@ -1199,8 +1204,8 @@ class coinsph extends Exchange {
              * @param {string} $symbol unified $market $symbol
              * @param {int} [$since] the earliest time in ms to fetch open orders for
              * @param {int} [$limit] the maximum number of  open orders structures to retrieve
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {Order[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {Order[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
              */
             Async\await($this->load_markets());
             $market = null;
@@ -1221,10 +1226,12 @@ class coinsph extends Exchange {
              * @param {string} $symbol unified $market $symbol of the $market orders were made in
              * @param {int} [$since] the earliest time in ms to fetch orders for
              * @param {int} [$limit] the maximum number of order structures to retrieve (default 500, max 1000)
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {Order[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {Order[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
              */
-            $this->check_required_symbol('fetchClosedOrders', $symbol);
+            if ($symbol === null) {
+                throw new ArgumentsRequired($this->id . ' fetchClosedOrders() requires a $symbol argument');
+            }
             Async\await($this->load_markets());
             $market = $this->market($symbol);
             $request = array(
@@ -1248,8 +1255,8 @@ class coinsph extends Exchange {
              * cancels an open order
              * @param {string} $id order $id
              * @param {string} $symbol not used by coinsph cancelOrder ()
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} An {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} An ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
              */
             Async\await($this->load_markets());
             $request = array();
@@ -1270,10 +1277,12 @@ class coinsph extends Exchange {
             /**
              * cancel open orders of $market
              * @param {string} $symbol unified $market $symbol
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
              */
-            $this->check_required_symbol('cancelAllOrders', $symbol);
+            if ($symbol === null) {
+                throw new ArgumentsRequired($this->id . ' cancelAllOrders() requires a $symbol argument');
+            }
             Async\await($this->load_markets());
             $market = null;
             $request = array();
@@ -1286,7 +1295,7 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function parse_order($order, $market = null): array {
+    public function parse_order($order, ?array $market = null): array {
         //
         // createOrder POST /openapi/v1/order
         //     {
@@ -1458,8 +1467,8 @@ class coinsph extends Exchange {
             /**
              * fetch the trading fees for a $market
              * @param {string} $symbol unified $market $symbol
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#fee-structure fee structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=fee-structure fee structure~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
@@ -1485,8 +1494,8 @@ class coinsph extends Exchange {
         return Async\async(function () use ($params) {
             /**
              * fetch the trading fees for multiple markets
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} a dictionary of {@link https://github.com/ccxt/ccxt/wiki/Manual#$fee-structure $fee structures} indexed by market symbols
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a dictionary of ~@link https://docs.ccxt.com/#/?id=$fee-structure $fee structures~ indexed by market symbols
              */
             Async\await($this->load_markets());
             $response = Async\await($this->privateGetOpenapiV1AssetTradeFee ($params));
@@ -1514,7 +1523,7 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function parse_trading_fee($fee, $market = null) {
+    public function parse_trading_fee($fee, ?array $market = null) {
         //
         //     {
         //         "symbol" => "ETHUSDT",
@@ -1542,8 +1551,8 @@ class coinsph extends Exchange {
              * @param {float} $amount the $amount to withdraw
              * @param {string} $address not used by coinsph withdraw ()
              * @param {string} $tag
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#transaction-structure transaction structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=transaction-structure transaction structure~
              */
             $options = $this->safe_value($this->options, 'withdraw');
             $warning = $this->safe_value($options, 'warning', true);
@@ -1580,8 +1589,8 @@ class coinsph extends Exchange {
              * @param {float} $amount the $amount to deposit
              * @param {string} $address not used by coinsph deposit ()
              * @param {string} $tag
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array} a {@link https://github.com/ccxt/ccxt/wiki/Manual#transaction-structure transaction structure}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} a ~@link https://docs.ccxt.com/#/?id=transaction-structure transaction structure~
              */
             $options = $this->safe_value($this->options, 'deposit');
             $warning = $this->safe_value($options, 'warning', true);
@@ -1602,7 +1611,7 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function fetch_deposits(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+    public function fetch_deposits(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($code, $since, $limit, $params) {
             /**
              * fetch all deposits made to an account
@@ -1610,8 +1619,8 @@ class coinsph extends Exchange {
              * @param {string} $code unified $currency $code
              * @param {int} [$since] the earliest time in ms to fetch deposits for
              * @param {int} [$limit] the maximum number of deposits structures to retrieve
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#transaction-structure transaction structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=transaction-structure transaction structures~
              */
             // todo => returns an empty array - find out why
             Async\await($this->load_markets());
@@ -1660,7 +1669,7 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function fetch_withdrawals(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+    public function fetch_withdrawals(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($code, $since, $limit, $params) {
             /**
              * fetch all withdrawals made from an account
@@ -1668,8 +1677,8 @@ class coinsph extends Exchange {
              * @param {string} $code unified $currency $code
              * @param {int} [$since] the earliest time in ms to fetch withdrawals for
              * @param {int} [$limit] the maximum number of withdrawals structures to retrieve
-             * @param {array} [$params] extra parameters specific to the coinsph api endpoint
-             * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#transaction-structure transaction structures}
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=transaction-structure transaction structures~
              */
             // todo => returns an empty array - find out why
             Async\await($this->load_markets());
@@ -1724,7 +1733,7 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function parse_transaction($transaction, $currency = null): array {
+    public function parse_transaction($transaction, ?array $currency = null): array {
         //
         // fetchDeposits
         //     {
@@ -1790,11 +1799,8 @@ class coinsph extends Exchange {
         if ($feeCost !== null) {
             $fee = array( 'currency' => $code, 'cost' => $feeCost );
         }
-        $internal = $this->safe_integer($transaction, 'transferType');
-        if ($internal !== null) {
-            $internal = $internal ? true : false;
-        }
         $network = $this->safe_string($transaction, 'network');
+        $internal = $network === 'Internal';
         return array(
             'info' => $transaction,
             'id' => $id,
@@ -1814,6 +1820,7 @@ class coinsph extends Exchange {
             'status' => $status,
             'updated' => $updated,
             'internal' => $internal,
+            'comment' => null,
             'fee' => $fee,
         );
     }
@@ -1834,9 +1841,9 @@ class coinsph extends Exchange {
              * fetch the deposit address for a $currency associated with this account
              * @see https://coins-docs.github.io/rest-api/#deposit-address-user_data
              * @param {string} $code unified $currency $code
-             * @param {array} [$params] extra parameters specific to the bitget api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {string} [$params->network] network for fetch deposit address
-             * @return {array} an {@link https://github.com/ccxt/ccxt/wiki/Manual#address-structure address structure}
+             * @return {array} an ~@link https://docs.ccxt.com/#/?id=address-structure address structure~
              */
             $networkCode = $this->safe_string($params, 'network');
             $networkId = $this->network_code_to_id($networkCode, $code);
@@ -1862,7 +1869,7 @@ class coinsph extends Exchange {
         }) ();
     }
 
-    public function parse_deposit_address($depositAddress, $currency = null) {
+    public function parse_deposit_address($depositAddress, ?array $currency = null) {
         //
         //     {
         //         "coin" => "ETH",

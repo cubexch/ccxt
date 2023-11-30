@@ -26,10 +26,14 @@ const OperationFailed = ccxt.OperationFailed;
 const OnMaintenance = ccxt.OnMaintenance;
 
 // non-transpiled part, but shared names among langs
+const proxyTestFileName = 'proxies';
 class baseMainTestClass {
     lang = 'JS';
     idTests = false;
-    staticTestsFailed = false;
+    requestTestsFailed = false;
+    responseTestsFailed = false;
+    requestTests = false;
+    responseTests = false;
     staticTests = false;
     info = false;
     verbose = false;
@@ -41,10 +45,16 @@ class baseMainTestClass {
     checkedPublicTests = {};
     testFiles = {};
     publicTests = {};
+    rootDir = DIR_NAME + '/../../../';
+    rootDirForSkips = DIR_NAME + '/../../../';
+    onlySpecificTests = [];
+    envVars = process.env;
+    proxyTestFileName = proxyTestFileName;
+    ext = import.meta.url.split ('.')[1];
 }
-const rootDir = DIR_NAME + '/../../../';
-const rootDirForSkips = DIR_NAME + '/../../../';
-const envVars = process.env;
+// const rootDir = DIR_NAME + '/../../../';
+// const rootDirForSkips = DIR_NAME + '/../../../';
+// const envVars = process.env;
 const LOG_CHARS_LENGTH = 10000;
 const ext = import.meta.url.split ('.')[1];
 
@@ -57,7 +67,7 @@ function jsonParse (elem) {
 }
 
 function jsonStringify (elem) {
-    return JSON.stringify (elem);
+    return JSON.stringify (elem,  (k, v) => (v === undefined ? null : v)); // preserve undefined values and convert them to null
 }
 
 function getCliArgValue (arg) {
@@ -92,6 +102,11 @@ async function callExchangeMethodDynamically (exchange: Exchange, methodName: st
     return await exchange[methodName] (...args);
 }
 
+async function callOverridenMethod (exchange, methodName, args) {
+    // needed in PHP here is just a bridge
+    return await callExchangeMethodDynamically (exchange, methodName, args);
+}
+
 function exceptionMessage (exc) {
     return '[' + exc.constructor.name + '] ' + exc.stack.slice (0, LOG_CHARS_LENGTH);
 }
@@ -119,8 +134,9 @@ async function importTestFile (filePath) {
 
 async function setTestFiles (holderClass, properties) {
     // exchange tests
-    for (let i = 0; i < properties.length; i++) {
-        const name = properties[i];
+    const finalPropList = properties.concat ([ proxyTestFileName ]);
+    for (let i = 0; i < finalPropList.length; i++) {
+        const name = finalPropList[i];
         const filePathWoExt = DIR_NAME + '/Exchange/test.' + name;
         if (ioFileExists (filePathWoExt + '.' + ext)) {
             // eslint-disable-next-line global-require, import/no-dynamic-require, no-path-concat
@@ -139,6 +155,15 @@ async function setTestFiles (holderClass, properties) {
     }
 }
 
+function setFetchResponse (exchange: Exchange, mockResponse) {
+    exchange.fetch = async (url, method = 'GET', headers = undefined, body = undefined) => mockResponse;
+    return exchange;
+}
+
+function isNullValue (value) {
+    return value === null;
+}
+
 async function close (exchange) {
     // stub
 }
@@ -148,8 +173,9 @@ async function close (exchange) {
 
 export default class testMainClass extends baseMainTestClass {
     parseCliArgs () {
+        this.responseTests = getCliArgValue ('--responseTests');
         this.idTests = getCliArgValue ('--idTests');
-        this.staticTests = getCliArgValue ('--static');
+        this.requestTests = getCliArgValue ('--requestTests');
         this.info = getCliArgValue ('--info');
         this.verbose = getCliArgValue ('--verbose');
         this.debug = getCliArgValue ('--debug');
@@ -158,18 +184,23 @@ export default class testMainClass extends baseMainTestClass {
         this.sandbox = getCliArgValue ('--sandbox');
     }
 
-    async init (exchangeId, symbol) {
+    async init (exchangeId, symbolArgv) {
         this.parseCliArgs ();
-        if (this.staticTests) {
-            await this.runStaticTests (exchangeId, symbol); // symbol here is the testname
+
+        if (this.responseTests) {
+            await this.runStaticResponseTests (exchangeId, symbolArgv);
+            return;
+        }
+        if (this.requestTests) {
+            await this.runStaticRequestTests (exchangeId, symbolArgv); // symbol here is the testname
             return;
         }
         if (this.idTests) {
             await this.runBrokerIdTests ();
             return;
         }
-        const symbolStr = symbol !== undefined ? symbol : 'all';
-        dump ('\nTESTING ', ext, { 'exchange': exchangeId, 'symbol': symbolStr }, '\n');
+        const symbolStr = symbolArgv !== undefined ? symbolArgv : 'all';
+        dump ('\nTESTING ', this.ext, { 'exchange': exchangeId, 'symbol': symbolStr }, '\n');
         const exchangeArgs = {
             'verbose': this.verbose,
             'debug': this.debug,
@@ -178,8 +209,32 @@ export default class testMainClass extends baseMainTestClass {
         };
         const exchange = initExchange (exchangeId, exchangeArgs);
         await this.importFiles (exchange);
-        this.expandSettings (exchange, symbol);
-        await this.startTest (exchange, symbol);
+        this.expandSettings (exchange);
+        const symbolOrUndefined = this.checkIfSpecificTestIsChosen (symbolArgv);
+        await this.startTest (exchange, symbolOrUndefined);
+    }
+
+    checkIfSpecificTestIsChosen (symbolArgv) {
+        if (symbolArgv !== undefined) {
+            const testFileNames = Object.keys (this.testFiles);
+            const possibleMethodNames = symbolArgv.split (','); // i.e. `test.ts binance fetchBalance,fetchDeposits`
+            if (possibleMethodNames.length >= 1) {
+                for (let i = 0; i < testFileNames.length; i++) {
+                    const testFileName = testFileNames[i];
+                    for (let j = 0; j < possibleMethodNames.length; j++) {
+                        const methodName = possibleMethodNames[j];
+                        if (testFileName === methodName) {
+                            this.onlySpecificTests.push (testFileName);
+                        }
+                    }
+                }
+            }
+            // if method names were found, then remove them from symbolArgv
+            if (this.onlySpecificTests.length > 0) {
+                return undefined;
+            }
+        }
+        return symbolArgv;
     }
 
     async importFiles (exchange) {
@@ -190,10 +245,10 @@ export default class testMainClass extends baseMainTestClass {
         await setTestFiles (this, properties);
     }
 
-    expandSettings (exchange, symbol) {
+    expandSettings (exchange) {
         const exchangeId = exchange.id;
-        const keysGlobal = rootDir + 'keys.json';
-        const keysLocal = rootDir + 'keys.local.json';
+        const keysGlobal = this.rootDir + 'keys.json';
+        const keysLocal = this.rootDir + 'keys.local.json';
         const keysGlobalExists = ioFileExists (keysGlobal);
         const keysLocalExists = ioFileExists (keysLocal);
         const globalSettings = keysGlobalExists ? ioFileRead (keysGlobal) : {};
@@ -225,14 +280,14 @@ export default class testMainClass extends baseMainTestClass {
             if (isRequired && getExchangeProp (exchange, credential) === undefined) {
                 const fullKey = exchangeId + '_' + credential;
                 const credentialEnvName = fullKey.toUpperCase (); // example: KRAKEN_APIKEY
-                const credentialValue = (credentialEnvName in envVars) ? envVars[credentialEnvName] : undefined;
+                const credentialValue = (credentialEnvName in this.envVars) ? this.envVars[credentialEnvName] : undefined;
                 if (credentialValue) {
                     setExchangeProp (exchange, credential, credentialValue);
                 }
             }
         }
         // skipped tests
-        const skippedFile = rootDirForSkips + 'skip-tests.json';
+        const skippedFile = this.rootDirForSkips + 'skip-tests.json';
         const skippedSettings = ioFileRead (skippedFile);
         const skippedSettingsForExchange = exchange.safeValue (skippedSettings, exchangeId, {});
         // others
@@ -240,15 +295,17 @@ export default class testMainClass extends baseMainTestClass {
         if (timeout !== undefined) {
             exchange.timeout = timeout;
         }
+        exchange.httpProxy = exchange.safeString (skippedSettingsForExchange, 'httpProxy');
         exchange.httpsProxy = exchange.safeString (skippedSettingsForExchange, 'httpsProxy');
         this.skippedMethods = exchange.safeValue (skippedSettingsForExchange, 'skipMethods', {});
         this.checkedPublicTests = {};
     }
 
-    addPadding (message, size) {
+    addPadding (message: string, size) {
         // has to be transpilable
         let res = '';
-        const missingSpace = size - message.length - 0; // - 0 is added just to trick transpile to treat the .length as a string for php
+        const messageLength = message.length; // avoid php transpilation issue
+        const missingSpace = size - messageLength - 0; // - 0 is added just to trick transpile to treat the .length as a string for php
         if (missingSpace > 0) {
             for (let i = 0; i < missingSpace; i++) {
                 res += ' ';
@@ -265,7 +322,11 @@ export default class testMainClass extends baseMainTestClass {
             return;
         }
         let skipMessage = undefined;
-        if (!isLoadMarkets && (!(methodName in exchange.has) || !exchange.has[methodName])) {
+        const isProxyTest = methodName === this.proxyTestFileName;
+        const supportedByExchange = (methodName in exchange.has) && exchange.has[methodName];
+        if (!isLoadMarkets && (this.onlySpecificTests.length > 0 && !exchange.inArray (methodNameInTest, this.onlySpecificTests))) {
+            skipMessage = '[INFO:IGNORED_TEST]';
+        } else if (!isLoadMarkets && !supportedByExchange && !isProxyTest) {
             skipMessage = '[INFO:UNSUPPORTED_TEST]'; // keep it aligned with the longest message
         } else if ((methodName in this.skippedMethods) && (typeof this.skippedMethods[methodName] === 'string')) {
             skipMessage = '[INFO:SKIPPED_TEST]';
@@ -401,7 +462,7 @@ export default class testMainClass extends baseMainTestClass {
             }
             // we don't throw exception for public-tests, see comments under 'testSafe' method
             let errorsInMessage = '';
-            if (errors) {
+            if (errors.length) {
                 const failedMsg = errors.join (', ');
                 errorsInMessage = ' | Failed methods : ' + failedMsg;
             }
@@ -630,14 +691,14 @@ export default class testMainClass extends baseMainTestClass {
         if (!this.privateTestOnly) {
             if (exchange.has['spot'] && spotSymbol !== undefined) {
                 if (this.info) {
-                    dump ('[INFO:SPOT TESTS]');
+                    dump ('[INFO: ### SPOT TESTS ###]');
                 }
                 exchange.options['type'] = 'spot';
                 await this.runPublicTests (exchange, spotSymbol);
             }
             if (exchange.has['swap'] && swapSymbol !== undefined) {
                 if (this.info) {
-                    dump ('[INFO:SWAP TESTS]');
+                    dump ('[INFO: ### SWAP TESTS ###]');
                 }
                 exchange.options['type'] = 'swap';
                 await this.runPublicTests (exchange, swapSymbol);
@@ -683,8 +744,6 @@ export default class testMainClass extends baseMainTestClass {
             'fetchTransactions': [ code ],
             'fetchDeposits': [ code ],
             'fetchWithdrawals': [ code ],
-            'fetchBorrowRates': [ ],
-            'fetchBorrowRate': [ code ],
             'fetchBorrowInterest': [ code, symbol ],
             // 'addMargin': [ ],
             // 'reduceMargin': [ ],
@@ -707,7 +766,6 @@ export default class testMainClass extends baseMainTestClass {
             'fetchDepositAddressesByNetwork': [ code ],
             // 'editOrder': [ ],
             'fetchBorrowRateHistory': [ code ],
-            'fetchBorrowRatesPerSymbol': [ ],
             'fetchLedgerEntry': [ code ],
             // 'fetchWithdrawal': [ ],
             // 'transfer': [ ],
@@ -756,6 +814,29 @@ export default class testMainClass extends baseMainTestClass {
         }
     }
 
+    async testProxies (exchange) {
+        // these tests should be synchronously executed, because of conflicting nature of proxy settings
+        const proxyTestName = this.proxyTestFileName;
+        if (this.info) {
+            dump (this.addPadding ('[INFO:TESTING]', 25), exchange.id, proxyTestName);
+        }
+        // try proxy several times
+        const maxRetries = 3;
+        let exception = undefined;
+        for (let j = 0; j < maxRetries; j++) {
+            try {
+                await this.testMethod (proxyTestName, exchange, [], true);
+                break; // if successfull, then break
+            } catch (e) {
+                exception = e;
+            }
+        }
+        // if exception was set, then throw it
+        if (exception) {
+            throw new Error ('[TEST_FAILURE] Failed ' + proxyTestName + ' : ' + exceptionMessage (exception));
+        }
+    }
+
     async startTest (exchange, symbol) {
         // we do not need to test aliases
         if (exchange.alias) {
@@ -770,6 +851,10 @@ export default class testMainClass extends baseMainTestClass {
             if (!result) {
                 await close (exchange);
                 return;
+            }
+            if (exchange.id === 'binance') {
+                // we test proxies functionality just for one random exchange on each build, because proxy functionality is not exchange-specific, instead it's all done from base methods, so just one working sample would mean it works for all ccxt exchanges
+                await this.testProxies (exchange);
             }
             await this.testExchange (exchange, symbol);
             await close (exchange);
@@ -794,13 +879,18 @@ export default class testMainClass extends baseMainTestClass {
         // to make this test as fast as possible
         // and basically independent from the exchange
         // so we can run it offline
-        const filename = rootDir + './ts/src/test/static/markets/' + id + '.json';
+        const filename = this.rootDir + './ts/src/test/static/markets/' + id + '.json';
         const content = ioFileRead (filename);
         return content;
     }
 
-    loadStaticData (targetExchange: string = undefined) {
-        const folder = rootDir + './ts/src/test/static/data/';
+    loadCurrenciesFromFile (id: string) {
+        const filename = this.rootDir + './ts/src/test/static/currencies/' + id + '.json';
+        const content = ioFileRead (filename);
+        return content;
+    }
+
+    loadStaticData (folder: string, targetExchange: string = undefined) {
         const result = {};
         if (targetExchange) {
             // read a single exchange
@@ -861,7 +951,13 @@ export default class testMainClass extends baseMainTestClass {
         return result;
     }
 
-    assertNewAndStoredOutput (exchange, skipKeys: string[], newOutput, storedOutput) {
+    assertNewAndStoredOutput (exchange: Exchange, skipKeys: string[], newOutput, storedOutput, strictTypeCheck = true) {
+        if (isNullValue (newOutput) && isNullValue (storedOutput)) {
+            return;
+        }
+        if (!newOutput && !storedOutput) {
+            return;
+        }
         if ((typeof storedOutput === 'object') && (typeof newOutput === 'object')) {
             const storedOutputKeys = Object.keys (storedOutput);
             const newOutputKeys = Object.keys (newOutput);
@@ -879,7 +975,7 @@ export default class testMainClass extends baseMainTestClass {
                 }
                 const storedValue = storedOutput[key];
                 const newValue = newOutput[key];
-                this.assertNewAndStoredOutput (exchange, skipKeys, newValue, storedValue);
+                this.assertNewAndStoredOutput (exchange, skipKeys, newValue, storedValue, strictTypeCheck);
             }
         } else if (Array.isArray (storedOutput) && (Array.isArray (newOutput))) {
             const storedArrayLength = storedOutput.length;
@@ -888,16 +984,35 @@ export default class testMainClass extends baseMainTestClass {
             for (let i = 0; i < storedOutput.length; i++) {
                 const storedItem = storedOutput[i];
                 const newItem = newOutput[i];
-                this.assertNewAndStoredOutput (exchange, skipKeys, newItem, storedItem);
+                this.assertNewAndStoredOutput (exchange, skipKeys, newItem, storedItem, strictTypeCheck);
             }
         } else {
             // built-in types like strings, numbers, booleans
-            const messageError = 'output value mismatch:' + newOutput.toString () + ' != ' + storedOutput.toString ();
-            this.assertStaticError (newOutput === storedOutput, messageError, storedOutput, newOutput);
+            const sanitizedNewOutput = (!newOutput) ? undefined : newOutput; // we store undefined as nulls in the json file so we need to convert it back
+            const sanitizedStoredOutput = (!storedOutput) ? undefined : storedOutput;
+            const newOutputString = sanitizedNewOutput ? sanitizedNewOutput.toString () : "undefined";
+            const storedOutputString = sanitizedStoredOutput ? sanitizedStoredOutput.toString () : "undefined";
+            const messageError = 'output value mismatch:' + newOutputString + ' != ' + storedOutputString;
+            if (strictTypeCheck) {
+                // upon building the request we want strict type check to make sure all the types are correct
+                // when comparing the response we want to allow some flexibility, because a 50.0 can be equal to 50 after saving it to the json file
+                this.assertStaticError (sanitizedNewOutput === sanitizedStoredOutput, messageError, storedOutput, newOutput);
+            } else {
+                const isBoolean = (typeof sanitizedNewOutput === 'boolean') || (typeof sanitizedStoredOutput === 'boolean');
+                const isString = (typeof sanitizedNewOutput === 'string') || (typeof sanitizedStoredOutput === 'string');
+                const isUndefined = (sanitizedNewOutput === undefined) || (sanitizedStoredOutput === undefined); // undefined is a perfetly valid value
+                if (isBoolean || isString || isUndefined)  {
+                    this.assertStaticError (newOutputString === storedOutputString, messageError, storedOutput, newOutput);
+                } else {
+                    const numericNewOutput =  exchange.parseToNumeric (newOutputString);
+                    const numericStoredOutput = exchange.parseToNumeric (storedOutputString);
+                    this.assertStaticError (numericNewOutput === numericStoredOutput, messageError, storedOutput, newOutput);
+                }
+            }
         }
     }
 
-    assertStaticOutput (exchange, type: string, skipKeys: string[], storedUrl: string, requestUrl: string, storedOutput, newOutput) {
+    assertStaticRequestOutput (exchange, type: string, skipKeys: string[], storedUrl: string, requestUrl: string, storedOutput, newOutput) {
         if (storedUrl !== requestUrl) {
             // remove the host part from the url
             const firstPath = this.removeHostnamefromUrl (storedUrl);
@@ -934,8 +1049,21 @@ export default class testMainClass extends baseMainTestClass {
         } else if (type === 'urlencoded') {
             storedOutput = this.urlencodedToDict (storedOutput);
             newOutput = this.urlencodedToDict (newOutput);
+        } else if (type === 'both') {
+            if (storedOutput.startsWith ('{') || storedOutput.startsWith ('[')) {
+                storedOutput = jsonParse (storedOutput);
+                newOutput = jsonParse (newOutput);
+            } else {
+                storedOutput = this.urlencodedToDict (storedOutput);
+                newOutput = this.urlencodedToDict (newOutput);
+
+            }
         }
         this.assertNewAndStoredOutput (exchange, skipKeys, newOutput, storedOutput);
+    }
+
+    assertStaticResponseOutput (exchange: Exchange, skipKeys: string[], computedResult, storedResult) {
+        this.assertNewAndStoredOutput (exchange, skipKeys, computedResult, storedResult, false);
     }
 
     sanitizeDataInput (input) {
@@ -946,7 +1074,7 @@ export default class testMainClass extends baseMainTestClass {
         const newInput = [];
         for (let i = 0; i < input.length; i++) {
             const current = input[i];
-            if (current === null) { // noqa: E711
+            if (isNullValue (current)) {
                 newInput.push (undefined);
             } else {
                 newInput.push (current);
@@ -971,21 +1099,39 @@ export default class testMainClass extends baseMainTestClass {
         }
         try {
             const callOutput = exchange.safeValue (data, 'output');
-            this.assertStaticOutput (exchange, type, skipKeys, data['url'], requestUrl, callOutput, output);
+            this.assertStaticRequestOutput (exchange, type, skipKeys, data['url'], requestUrl, callOutput, output);
         }
         catch (e) {
-            this.staticTestsFailed = true;
-            const errorMessage = '[' + this.lang + '][STATIC_TEST_FAILURE]' + '[' + exchange.id + ']' + '[' + method + ']' + '[' + data['description'] + ']' + e.toString ();
+            this.requestTestsFailed = true;
+            const errorMessage = '[' + this.lang + '][STATIC_REQUEST_TEST_FAILURE]' + '[' + exchange.id + ']' + '[' + method + ']' + '[' + data['description'] + ']' + e.toString ();
             dump (errorMessage);
         }
     }
 
-    initOfflineExchange (exchangeName: string) {
-        const markets = this.loadMarketsFromFile (exchangeName);
-        return initExchange (exchangeName, { 'markets': markets, 'rateLimit': 1, 'httpsProxy': 'http://fake:8080', 'apiKey': 'key', 'secret': 'secretsecret', 'password': 'password', 'uid': 'uid', 'accounts': [ { 'id': 'myAccount' } ], 'options': { 'enableUnifiedAccount': true, 'enableUnifiedMargin': false, 'accessToken': 'token', 'expires': 999999999999999, 'leverageBrackets': {}}});
+    async testResponseStatically (exchange, method: string, skipKeys: string[], data: object) {
+        const expectedResult = exchange.safeValue (data, 'parsedResponse');
+        const mockedExchange = setFetchResponse (exchange, data['httpResponse']);
+        try {
+            const unifiedResult = await callExchangeMethodDynamically (exchange, method, this.sanitizeDataInput (data['input']));
+            this.assertStaticResponseOutput (mockedExchange, skipKeys, unifiedResult, expectedResult);
+        }
+        catch (e) {
+            this.requestTestsFailed = true;
+            const errorMessage = '[' + this.lang + '][STATIC_RESPONSE_TEST_FAILURE]' + '[' + exchange.id + ']' + '[' + method + ']' + '[' + data['description'] + ']' + e.toString ();
+            dump (errorMessage);
+        }
+        setFetchResponse (exchange, undefined); // reset state
     }
 
-    async testExchangeStatically (exchangeName: string, exchangeData: object, testName: string = undefined) {
+    initOfflineExchange (exchangeName: string) {
+        const markets = this.loadMarketsFromFile (exchangeName);
+        const currencies = this.loadCurrenciesFromFile (exchangeName);
+        const exchange = initExchange (exchangeName, { 'markets': markets, 'enableRateLimit': false, 'rateLimit': 1, 'httpsProxy': 'http://fake:8080', 'apiKey': 'key', 'secret': 'secretsecret', 'password': 'password', 'uid': 'uid', 'accounts': [ { 'id': 'myAccount' } ], 'options': { 'enableUnifiedAccount': true, 'enableUnifiedMargin': false, 'accessToken': 'token', 'expires': 999999999999999, 'leverageBrackets': {}}});
+        exchange.currencies = currencies; // not working in python if assigned  in the config dict
+        return exchange;
+    }
+
+    async testExchangeRequestStatically (exchangeName: string, exchangeData: object, testName: string = undefined) {
         // instantiate the exchange and make sure that we sink the requests to avoid an actual request
         const exchange = this.initOfflineExchange (exchangeName);
         const methods = exchange.safeValue (exchangeData, 'methods', {});
@@ -1007,6 +1153,28 @@ export default class testMainClass extends baseMainTestClass {
         await close (exchange);
     }
 
+    async testExchangeResponseStatically (exchangeName: string, exchangeData: object, testName: string = undefined) {
+        const exchange = this.initOfflineExchange (exchangeName);
+        const methods = exchange.safeValue (exchangeData, 'methods', {});
+        const options = exchange.safeValue (exchangeData, 'options', {});
+        exchange.options = exchange.deepExtend (exchange.options, options); // custom options to be used in the tests
+        const methodsNames = Object.keys (methods);
+        for (let i = 0; i < methodsNames.length; i++) {
+            const method = methodsNames[i];
+            const results = methods[method];
+            for (let j = 0; j < results.length; j++) {
+                const result = results[j];
+                const description = exchange.safeValue (result, 'description');
+                if ((testName !== undefined) && (testName !== description)) {
+                    continue;
+                }
+                const skipKeys = exchange.safeValue (exchangeData, 'skipKeys', []);
+                await this.testResponseStatically (exchange, method, skipKeys, result);
+            }
+        }
+        await close (exchange);
+    }
+
     getNumberOfTestsFromExchange (exchange, exchangeData: object) {
         let sum = 0;
         const methods = exchangeData['methods'];
@@ -1020,8 +1188,13 @@ export default class testMainClass extends baseMainTestClass {
         return sum;
     }
 
-    async runStaticTests (targetExchange: string = undefined, testName: string = undefined) {
-        const staticData = this.loadStaticData (targetExchange);
+    async runStaticRequestTests (targetExchange: string = undefined, testName: string = undefined) {
+        await this.runStaticTests ('request', targetExchange, testName);
+    }
+
+    async runStaticTests (type: string, targetExchange: string = undefined, testName: string = undefined) {
+        const folder = this.rootDir + './ts/src/test/static/' + type + '/';
+        const staticData = this.loadStaticData (folder, targetExchange);
         const exchanges = Object.keys (staticData);
         const exchange = initExchange ('Exchange', {}); // tmp to do the calculations until we have the ast-transpiler transpiling this code
         const promises = [];
@@ -1037,16 +1210,27 @@ export default class testMainClass extends baseMainTestClass {
             const exchangeData = staticData[exchangeName];
             const numberOfTests = this.getNumberOfTestsFromExchange (exchange, exchangeData);
             sum = exchange.sum (sum, numberOfTests);
-            promises.push (this.testExchangeStatically (exchangeName, exchangeData, testName));
+            if (type === 'request') {
+                promises.push (this.testExchangeRequestStatically (exchangeName, exchangeData, testName));
+            } else {
+                promises.push (this.testExchangeResponseStatically (exchangeName, exchangeData, testName));
+            }
         }
         await Promise.all (promises);
-        if (this.staticTestsFailed) {
+        if (this.requestTestsFailed || this.responseTestsFailed) {
             exitScript (1);
         } else {
-            const successMessage = '[' + this.lang + '][TEST_SUCCESS] ' + sum.toString () + ' static tests passed.';
+            const successMessage = '[' + this.lang + '][TEST_SUCCESS] ' + sum.toString () + ' static ' + type + ' tests passed.';
             dump (successMessage);
             exitScript (0);
         }
+    }
+
+    async runStaticResponseTests (exchangeName = undefined, test = undefined) {
+        //  -----------------------------------------------------------------------------
+        //  --- Init of mockResponses tests functions------------------------------------
+        //  -----------------------------------------------------------------------------
+        await this.runStaticTests ('response', exchangeName, test);
     }
 
     async runBrokerIdTests () {
@@ -1063,7 +1247,9 @@ export default class testMainClass extends baseMainTestClass {
             this.testBitget (),
             this.testMexc (),
             this.testHuobi (),
-            this.testWoo ()
+            this.testWoo (),
+            this.testBitmart (),
+            this.testCoinex ()
         ];
         await Promise.all (promises);
         const successMessage = '[' + this.lang + '][TEST_SUCCESS] brokerId tests passed.';
@@ -1269,6 +1455,36 @@ export default class testMainClass extends baseMainTestClass {
         const clientOrderIdSpot = stopOrderRequest['brokerId'];
         assert (clientOrderIdSpot.startsWith (id), 'brokerId does not start with id');
         await close (woo);
+    }
+
+    async testBitmart () {
+        const bitmart = this.initOfflineExchange ('bitmart');
+        let reqHeaders = undefined;
+        const id = 'CCXTxBitmart000';
+        assert (bitmart.options['brokerId'] === id, 'id not in options');
+        await bitmart.loadMarkets ();
+        try {
+            await bitmart.createOrder ('BTC/USDT', 'limit', 'buy', 1, 20000);
+        } catch (e) {
+            reqHeaders = bitmart.last_request_headers;
+        }
+        assert (reqHeaders['X-BM-BROKER-ID'] === id, 'id not in headers');
+        await close (bitmart);
+    }
+
+    async testCoinex () {
+        const exchange = this.initOfflineExchange ('coinex');
+        const id = 'x-167673045';
+        assert (exchange.options['brokerId'] === id, 'id not in options');
+        let spotOrderRequest = undefined;
+        try {
+            await exchange.createOrder ('BTC/USDT', 'limit', 'buy', 1, 20000);
+        } catch (e) {
+            spotOrderRequest = jsonParse (exchange.last_request_body);
+        }
+        const clientOrderId = spotOrderRequest['client_id'];
+        assert (clientOrderId.startsWith (id), 'clientOrderId does not start with id');
+        await close (exchange);
     }
 }
 // ***** AUTO-TRANSPILER-END *****
