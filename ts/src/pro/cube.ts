@@ -59,8 +59,11 @@ export default class cube extends cubeRest {
         // send heartbeat every 29 seconds to keep ws alive
         const intervalMs = 29000;
         while (client.isConnected) {
-            const { MdMessage, Heartbeat } = md;
-            // define heartbeat prior to mdMessage instantiation to avoid python error
+            // define two objects to use individually, as the line below throws php error
+            // const { MdMessage, Heartbeat } = md;
+            const Heartbeat = md.Heartbeat;
+            const MdMessage = md.MdMessage;
+            // now we define heartbeat prior to mdMessage instantiation to avoid python error
             // ruff returns Unexpected Token 'Heartbeat' when done inline
             const hb = new Heartbeat ({
                 // random number between 1 and 100k, server will respond w it upon receipt
@@ -98,7 +101,7 @@ export default class cube extends cubeRest {
         const client = this.client (url);
         const future = client.future (messageHash);
         const authenticated = this.safeValue (client.subscriptions, messageHash);
-        if (authenticated === undefined) {
+        if (authenticated === undefined) { 
             const request = {
                 accessKeyId,
                 messageHash,
