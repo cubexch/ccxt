@@ -53,11 +53,10 @@ export default class cube extends cubeRest {
         });
     }
 
-    onConnected (client: Client, message = undefined) {
+    onConnected (client, message = undefined) {
         // for user hooks
         // ---
         // TODO: authenticate
-
         // ---
         // send heartbeat every 29 seconds to keep ws alive
         const intervalMs = 29000;
