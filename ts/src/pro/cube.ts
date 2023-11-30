@@ -101,7 +101,7 @@ export default class cube extends cubeRest {
         const client = this.client (url);
         const future = client.future (messageHash);
         const authenticated = this.safeValue (client.subscriptions, messageHash);
-        if (authenticated === undefined) { 
+        if (authenticated === undefined) {
             const request = {
                 accessKeyId,
                 messageHash,
